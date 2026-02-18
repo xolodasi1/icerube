@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Loader2, PlayCircle, Zap, Search as SearchIcon } from 'lucide-react';
+import { Loader2, PlayCircle, Zap, Search as SearchIcon, Home, Radio, FolderHeart, History, Heart, Terminal } from 'lucide-react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import VideoCard from './components/VideoCard';
@@ -13,7 +13,7 @@ import { Video, UserState, Channel, Comment, ViewMode } from './types';
 import { fetchRealVideos } from './services/geminiService';
 
 const App: React.FC = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [selectedCategory, setSelectedCategory] = useState('Все');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
@@ -21,17 +21,18 @@ const App: React.FC = () => {
   
   const [videos, setVideos] = useState<Video[]>([]);
   const [userState, setUserState] = useState<UserState>(() => {
-    const saved = localStorage.getItem('gt_v9_user');
+    const saved = localStorage.getItem('gt_v11_user');
     return saved ? JSON.parse(saved) : {
       channel: null,
       subscriptions: [],
       likedVideos: [],
+      archivedVideos: [],
       history: []
     };
   });
 
   const [channelStats, setChannelStats] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem('gt_v9_stats');
+    const saved = localStorage.getItem('gt_v11_stats');
     return saved ? JSON.parse(saved) : {};
   });
   
@@ -39,10 +40,11 @@ const App: React.FC = () => {
   const [isChannelModalOpen, setIsChannelModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('all');
 
-  // Sync state to LocalStorage
+  // Removed the useEffect that auto-loaded trending videos
+
   useEffect(() => {
-    localStorage.setItem('gt_v9_user', JSON.stringify(userState));
-    localStorage.setItem('gt_v9_stats', JSON.stringify(channelStats));
+    localStorage.setItem('gt_v11_user', JSON.stringify(userState));
+    localStorage.setItem('gt_v11_stats', JSON.stringify(channelStats));
   }, [userState, channelStats]);
 
   const handleSearch = async (query: string) => {
@@ -52,7 +54,10 @@ const App: React.FC = () => {
     setSelectedVideoId(null);
     try {
       const results = await fetchRealVideos(query);
-      setVideos(results);
+      setVideos(prev => {
+        const unique = results.filter(nv => !prev.find(pv => pv.id === nv.id));
+        return [...unique, ...prev];
+      });
       setViewMode('all');
     } catch (e) {
       console.error("Search failed", e);
@@ -70,11 +75,13 @@ const App: React.FC = () => {
       results = results.filter(v => userState.subscriptions.includes(v.channelId));
     } else if (viewMode === 'liked') {
       results = results.filter(v => userState.likedVideos.includes(v.id));
+    } else if (viewMode === 'archive') {
+      results = results.filter(v => userState.archivedVideos.includes(v.id));
     } else if (viewMode === 'history') {
       results = results.filter(v => userState.history.includes(v.id))
         .sort((a, b) => userState.history.indexOf(b.id) - userState.history.indexOf(a.id));
     } else if (viewMode === 'shorts') {
-      results = results.filter(v => v.category === 'Шортсы' || v.duration.length <= 4 || v.title.toLowerCase().includes('shorts'));
+      results = results.filter(v => v.category === 'Шортсы' || v.duration.length <= 4);
     }
     
     if (selectedCategory !== 'Все') {
@@ -96,17 +103,15 @@ const App: React.FC = () => {
     setViewMode(mode);
     setSelectedVideoId(null);
     
-    // Fetch content if switching to special views and list is empty
-    if (mode === 'trending' || (mode === 'shorts' && filteredVideos.length === 0)) {
+    if ((mode === 'trending' || mode === 'shorts') && filteredVideos.length === 0) {
       setIsLoading(true);
-      const query = mode === 'shorts' ? "YouTube Shorts trending 2025" : "Популярное на YouTube сегодня";
+      const query = mode === 'shorts' ? "YouTube Shorts trends 2025" : "Trends YouTube world 2025";
       const newContent = await fetchRealVideos(query);
-      setVideos(newContent);
+      setVideos(prev => {
+        const unique = newContent.filter(nv => !prev.find(pv => pv.id === nv.id));
+        return [...unique, ...prev];
+      });
       setIsLoading(false);
-    } else if (mode === 'all') {
-      setVideos([]); // Reset home to empty if desired, or keep search results
-      setSearchQuery('');
-      setSelectedCategory('Все');
     }
   };
 
@@ -116,6 +121,16 @@ const App: React.FC = () => {
       return { 
         ...prev, 
         likedVideos: isLiked ? prev.likedVideos.filter(id => id !== videoId) : [...prev.likedVideos, videoId] 
+      };
+    });
+  };
+
+  const toggleArchive = (videoId: string) => {
+    setUserState(prev => {
+      const isArchived = prev.archivedVideos.includes(videoId);
+      return { 
+        ...prev, 
+        archivedVideos: isArchived ? prev.archivedVideos.filter(id => id !== videoId) : [...prev.archivedVideos, videoId] 
       };
     });
   };
@@ -137,109 +152,116 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#05070a] text-slate-100">
+    <div className="min-h-screen bg-[#05070a] text-slate-100 flex flex-col">
       <Header 
         onSearch={handleSearch} 
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        onHomeClick={() => handleModeChange('all')}
+        onHomeClick={() => { setViewMode('all'); setVideos([]); setSelectedVideoId(null); }}
         onUploadClick={() => userState.channel ? setIsUploadModalOpen(true) : setIsChannelModalOpen(true)}
         onProfileClick={() => userState.channel ? handleModeChange('user') : setIsChannelModalOpen(true)}
         userAvatar={userState.channel?.avatar}
       />
       
-      {!selectedVideoId && (
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onModeChange={handleModeChange}
-          currentMode={viewMode}
-        />
-      )}
+      <div className="flex flex-1 overflow-hidden pt-14">
+        {!selectedVideoId && (
+          <Sidebar 
+            isOpen={isSidebarOpen} 
+            onModeChange={handleModeChange}
+            currentMode={viewMode}
+          />
+        )}
 
-      {selectedVideoId ? (
-        <VideoPlayer 
-          video={videos.find(v => v.id === selectedVideoId) || videos[0]} 
-          onVideoSelect={selectVideo}
-          allVideos={videos}
-          isLiked={userState.likedVideos.includes(selectedVideoId)}
-          isSubscribed={userState.subscriptions.includes(videos.find(v => v.id === selectedVideoId)?.channelId || '')}
-          subscriberCount={channelStats[videos.find(v => v.id === selectedVideoId)?.channelId || ''] || 0}
-          onToggleLike={toggleLike}
-          onToggleSubscribe={toggleSubscribe}
-          onAddComment={addComment}
-          userState={userState}
-        />
-      ) : viewMode === 'shorts' ? (
-        <main className={`pt-14 ${isSidebarOpen ? 'md:ml-60' : 'md:ml-20'}`}>
-          {isLoading ? (
-            <div className="h-[80vh] flex flex-col items-center justify-center gap-6">
-               <div className="relative">
-                  <Loader2 className="w-16 h-16 text-cyan-500 animate-spin" />
-                  <Zap className="w-6 h-6 text-cyan-400 absolute inset-0 m-auto animate-pulse" />
-               </div>
-               <p className="font-black uppercase tracking-[0.4em] text-[10px] text-cyan-400/60">Инициализация нейро-шортсов...</p>
-            </div>
-          ) : (
+        <div className={`flex-1 overflow-y-auto no-scrollbar pb-20 md:pb-0 ${!selectedVideoId && isSidebarOpen ? 'md:ml-60' : !selectedVideoId ? 'md:ml-20' : ''}`}>
+          {selectedVideoId ? (
+            <VideoPlayer 
+              video={videos.find(v => v.id === selectedVideoId) || videos[0]} 
+              onVideoSelect={selectVideo}
+              allVideos={videos}
+              isLiked={userState.likedVideos.includes(selectedVideoId)}
+              isArchived={userState.archivedVideos.includes(selectedVideoId)}
+              isSubscribed={userState.subscriptions.includes(videos.find(v => v.id === selectedVideoId)?.channelId || '')}
+              subscriberCount={channelStats[videos.find(v => v.id === selectedVideoId)?.channelId || ''] || 0}
+              onToggleLike={toggleLike}
+              onToggleArchive={toggleArchive}
+              onToggleSubscribe={toggleSubscribe}
+              onAddComment={addComment}
+              userState={userState}
+            />
+          ) : viewMode === 'shorts' ? (
             <ShortsFeed videos={filteredVideos} onToggleLike={toggleLike} userState={userState} />
-          )}
-        </main>
-      ) : (
-        <main className={`transition-all duration-500 pt-14 ${isSidebarOpen ? 'md:ml-60' : 'md:ml-20'}`}>
-          <div className={`fixed top-14 right-0 ${isSidebarOpen ? 'md:left-60' : 'md:left-20'} bg-[#05070a]/90 backdrop-blur-xl z-30 flex items-center gap-3 px-6 py-4 overflow-x-auto no-scrollbar border-b border-white/5`}>
-            {CATEGORIES.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border whitespace-nowrap ${
-                  selectedCategory === cat ? 'bg-cyan-500 border-cyan-400 text-white shadow-[0_0_20px_rgba(6,182,212,0.3)]' : 'bg-slate-900/50 border-slate-800 text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          <div className="p-6 md:p-10 mt-14 min-h-[calc(100vh-7rem)] flex flex-col">
-            {isLoading ? (
-              <div className="flex-1 flex flex-col items-center justify-center gap-6 text-cyan-400">
-                <div className="relative">
-                  <Loader2 className="w-14 h-14 animate-spin opacity-50" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-cyan-400 rounded-full animate-ping"></div>
-                  </div>
-                </div>
-                <div className="text-center space-y-2">
-                  <p className="font-black uppercase tracking-[0.5em] text-[10px]">Сканирование_пространства</p>
-                  <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest italic">Связь с Gemini API установлена...</p>
-                </div>
-              </div>
-            ) : filteredVideos.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8 animate-feed">
-                {filteredVideos.map(video => (
-                  <VideoCard key={video.id} video={video} onClick={selectVideo} />
+          ) : (
+            <div className="flex flex-col">
+              {/* Categories */}
+              <div className="sticky top-0 bg-[#05070a]/90 backdrop-blur-xl z-30 flex items-center gap-2 px-4 py-3 overflow-x-auto no-scrollbar border-b border-white/5">
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border whitespace-nowrap ${
+                      selectedCategory === cat ? 'bg-cyan-500 border-cyan-400 text-white' : 'bg-slate-900/50 border-slate-800 text-slate-500'
+                    }`}
+                  >
+                    {cat}
+                  </button>
                 ))}
               </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
-                <div className="w-32 h-32 bg-slate-900/30 rounded-full flex items-center justify-center mb-8 border border-white/5 relative group">
-                  <div className="absolute inset-0 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-all"></div>
-                  <SearchIcon className="w-12 h-12 text-slate-800 relative z-10" />
-                </div>
-                <h2 className="text-4xl font-black italic tracking-tighter uppercase mb-4 bg-gradient-to-b from-white to-slate-800 bg-clip-text text-transparent">
-                  Сигналы не обнаружены
-                </h2>
-                <p className="text-slate-600 font-bold uppercase tracking-[0.3em] text-[10px] max-w-xs leading-loose">
-                  Система GeminiTube находится в режиме ожидания. Используйте поиск, чтобы найти трансляции в глобальной сети.
-                </p>
-                <div className="mt-8 flex gap-4">
-                  <div className="w-1 h-1 bg-cyan-500 rounded-full animate-ping"></div>
-                  <div className="w-1 h-1 bg-cyan-500 rounded-full animate-ping [animation-delay:200ms]"></div>
-                  <div className="w-1 h-1 bg-cyan-500 rounded-full animate-ping [animation-delay:400ms]"></div>
-                </div>
+
+              <div className="p-4 md:p-8 flex-1">
+                {isLoading ? (
+                  <div className="h-[60vh] flex flex-col items-center justify-center gap-4 text-cyan-400">
+                    <Loader2 className="w-12 h-12 animate-spin opacity-50" />
+                    <p className="font-black uppercase tracking-[0.5em] text-[10px] animate-pulse">Ожидание ответа нейросети...</p>
+                  </div>
+                ) : filteredVideos.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 animate-feed">
+                    {filteredVideos.map(video => (
+                      <VideoCard key={video.id} video={video} onClick={selectVideo} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-[70vh] flex flex-col items-center justify-center text-center px-6">
+                    <div className="relative mb-8 group">
+                      <div className="absolute inset-0 bg-cyan-500/10 blur-3xl rounded-full scale-150 group-hover:bg-cyan-500/20 transition-all"></div>
+                      <Terminal className="w-20 h-20 text-slate-800 relative z-10 group-hover:text-slate-700 transition-colors" />
+                    </div>
+                    <h2 className="text-3xl font-black italic uppercase tracking-tighter text-slate-600 mb-2">
+                      Линия свободна
+                    </h2>
+                    <p className="text-slate-800 text-[10px] font-black uppercase tracking-[0.4em] max-w-xs leading-loose">
+                      Введите поисковый запрос в терминал сверху, чтобы инициализировать поток данных.
+                    </p>
+                    <div className="mt-12 flex gap-3">
+                      {[1,2,3].map(i => (
+                        <div key={i} className="w-1.5 h-1.5 bg-slate-900 rounded-full animate-pulse" style={{ animationDelay: `${i * 200}ms` }}></div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </main>
-      )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Bottom Nav */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#0a0f1d]/95 backdrop-blur-2xl border-t border-white/5 flex items-center justify-around z-[60] px-2 pb-safe">
+        <button onClick={() => { handleModeChange('all'); setVideos([]); }} className={`flex flex-col items-center gap-1 ${viewMode === 'all' && videos.length === 0 ? 'text-cyan-400' : 'text-slate-500'}`}>
+          <Home className="w-5 h-5" />
+          <span className="text-[8px] font-black uppercase tracking-tighter">Главная</span>
+        </button>
+        <button onClick={() => handleModeChange('shorts')} className={`flex flex-col items-center gap-1 ${viewMode === 'shorts' ? 'text-cyan-400' : 'text-slate-500'}`}>
+          <Zap className="w-5 h-5" />
+          <span className="text-[8px] font-black uppercase tracking-tighter">Шортсы</span>
+        </button>
+        <button onClick={() => handleModeChange('subs')} className={`flex flex-col items-center gap-1 ${viewMode === 'subs' ? 'text-cyan-400' : 'text-slate-500'}`}>
+          <Radio className="w-5 h-5" />
+          <span className="text-[8px] font-black uppercase tracking-tighter">Узлы</span>
+        </button>
+        <button onClick={() => handleModeChange('archive')} className={`flex flex-col items-center gap-1 ${viewMode === 'archive' ? 'text-cyan-400' : 'text-slate-500'}`}>
+          <FolderHeart className="w-5 h-5" />
+          <span className="text-[8px] font-black uppercase tracking-tighter">Архив</span>
+        </button>
+      </nav>
 
       {isUploadModalOpen && <UploadModal onClose={() => setIsUploadModalOpen(false)} onUpload={(v) => setVideos([v, ...videos])} />}
       {isChannelModalOpen && <ChannelModal onClose={() => setIsChannelModalOpen(false)} onCreate={(c) => setUserState({...userState, channel: c})} />}

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Video, Comment, Channel, UserState } from '../types';
-import { ThumbsUp, ThumbsDown, Share2, Download, MoreHorizontal, Sparkles, CheckCircle, BellRing, Bell, Send, ArrowLeft } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Share2, Download, Sparkles, CheckCircle, BellRing, Bell, FolderPlus, FolderCheck } from 'lucide-react';
 import { summarizeVideo } from '../services/geminiService';
 import VideoCard from './VideoCard';
 
@@ -10,9 +10,11 @@ interface VideoPlayerProps {
   onVideoSelect: (video: Video) => void;
   allVideos: Video[];
   isLiked: boolean;
+  isArchived: boolean;
   isSubscribed: boolean;
   subscriberCount: number;
   onToggleLike: (videoId: string) => void;
+  onToggleArchive: (videoId: string) => void;
   onToggleSubscribe: (channelId: string) => void;
   onAddComment: (videoId: string, comment: Comment) => void;
   userState: UserState;
@@ -23,9 +25,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onVideoSelect, 
   allVideos, 
   isLiked, 
+  isArchived,
   isSubscribed,
   subscriberCount,
   onToggleLike,
+  onToggleArchive,
   onToggleSubscribe,
   onAddComment,
   userState
@@ -64,11 +68,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 p-4 md:p-10 mt-14 max-w-[1800px] mx-auto animate-in fade-in duration-500">
+    <div className="flex flex-col xl:flex-row gap-6 p-4 md:p-8 animate-in fade-in duration-500">
       <div className="flex-1 min-w-0">
-        <div className="aspect-video w-full bg-black rounded-[2rem] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.8)] border border-white/5">
+        <div className="aspect-video w-full bg-black rounded-xl md:rounded-3xl overflow-hidden shadow-2xl border border-white/5">
           {video.isUserUploaded ? (
-            <video controls autoPlay className="w-full h-full bg-black" src={video.videoUrl} />
+            <video controls autoPlay className="w-full h-full" src={video.videoUrl} />
           ) : (
             <iframe
               className="w-full h-full"
@@ -81,142 +85,114 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           )}
         </div>
 
-        <div className="mt-8">
-          <h1 className="text-3xl font-black italic tracking-tighter uppercase">{video.title}</h1>
+        <div className="mt-6">
+          <h1 className="text-xl md:text-2xl font-black italic tracking-tighter uppercase leading-tight">{video.title}</h1>
           
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mt-6 pb-8 border-b border-white/5">
-            <div className="flex items-center gap-5">
-              <img src={video.channelAvatar} alt="" className="w-14 h-14 rounded-2xl border border-cyan-500/20 p-0.5 object-cover" />
-              <div className="mr-4">
-                <p className="font-black italic flex items-center gap-2 text-xl tracking-tighter">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-6 pb-6 border-b border-white/5">
+            <div className="flex items-center gap-4">
+              <img src={video.channelAvatar} alt="" className="w-10 h-10 md:w-12 md:h-12 rounded-xl object-cover" />
+              <div className="flex-1">
+                <p className="font-black italic flex items-center gap-1.5 text-sm md:text-base tracking-tighter truncate">
                   {video.channelName}
-                  <CheckCircle className="w-5 h-5 text-cyan-400" />
+                  <CheckCircle className="w-4 h-4 text-cyan-400" />
                 </p>
-                <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">{subscriberCount.toLocaleString()} Узлов привязано</p>
+                <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{subscriberCount.toLocaleString()} узлов</p>
               </div>
               
-              {video.channelId !== userState.channel?.id && (
-                <button 
-                  onClick={() => onToggleSubscribe(video.channelId)}
-                  className={`px-8 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 flex items-center gap-3 ${
-                    isSubscribed 
-                    ? 'bg-slate-900 text-slate-500 border border-slate-800' 
-                    : 'bg-white text-black shadow-xl shadow-white/5 hover:bg-slate-200'
-                  }`}
-                >
-                  {isSubscribed ? <BellRing className="w-3 h-3" /> : <Bell className="w-3 h-3" />}
-                  {isSubscribed ? 'Связано' : 'Связать узел'}
-                </button>
-              )}
+              <button 
+                onClick={() => onToggleSubscribe(video.channelId)}
+                className={`px-4 md:px-6 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] transition-all ${
+                  isSubscribed ? 'bg-slate-900 text-slate-600' : 'bg-white text-black'
+                }`}
+              >
+                {isSubscribed ? 'Связано' : 'Связать'}
+              </button>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-center bg-slate-900/50 border border-slate-800 rounded-xl h-12 p-1">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+              <div className="flex items-center bg-slate-900/50 border border-slate-800 rounded-lg p-0.5">
                 <button 
                   onClick={() => onToggleLike(video.id)}
-                  className={`flex items-center gap-2 px-6 py-2 hover:bg-white/5 border-r border-slate-800 transition-all ${isLiked ? 'text-cyan-400' : 'text-slate-400'}`}
+                  className={`flex items-center gap-2 px-4 py-2 border-r border-slate-800 transition-all ${isLiked ? 'text-cyan-400' : 'text-slate-400'}`}
                 >
-                  <ThumbsUp className={`w-4 h-4 ${isLiked ? 'fill-cyan-400/10' : ''}`} />
-                  <span className="text-xs font-black">{(video.likes + (isLiked ? 1 : 0)).toLocaleString()}</span>
+                  <ThumbsUp className={`w-3.5 h-3.5 ${isLiked ? 'fill-cyan-400/10' : ''}`} />
+                  <span className="text-[10px] font-black">{(video.likes + (isLiked ? 1 : 0)).toLocaleString()}</span>
                 </button>
-                <button className="px-6 py-2 hover:bg-white/5 text-slate-400 transition-colors">
-                  <ThumbsDown className="w-4 h-4" />
+                <button className="px-4 py-2 text-slate-400">
+                  <ThumbsDown className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <button className="flex items-center gap-2 bg-slate-900/50 border border-slate-800 px-6 py-2 h-12 rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest text-slate-400">
-                <Share2 className="w-4 h-4" /> Поделиться
+              
+              <button 
+                onClick={() => onToggleArchive(video.id)}
+                className={`flex items-center gap-2 bg-slate-900/50 border border-slate-800 px-4 py-2 rounded-lg transition-all font-black text-[9px] uppercase tracking-widest ${isArchived ? 'text-cyan-400 border-cyan-500/30' : 'text-slate-400'}`}
+              >
+                {isArchived ? <FolderCheck className="w-3.5 h-3.5" /> : <FolderPlus className="w-3.5 h-3.5" />}
+                {isArchived ? 'В папке' : 'В архив'}
+              </button>
+
+              <button className="flex items-center gap-2 bg-slate-900/50 border border-slate-800 px-4 py-2 rounded-lg text-slate-400 font-black text-[9px] uppercase tracking-widest">
+                <Share2 className="w-3.5 h-3.5" /> Сеть
               </button>
             </div>
           </div>
         </div>
 
-        <div className="mt-8 bg-slate-900/30 border border-white/5 rounded-[2rem] p-8 text-sm group">
-          <div className="flex items-center justify-between mb-6">
-            <div className="font-black italic uppercase tracking-widest text-slate-500 text-xs flex gap-6">
-              <span>{video.views.toLocaleString()} Импульсов</span>
+        <div className="mt-6 bg-slate-900/30 border border-white/5 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex gap-4 text-[9px] font-black uppercase text-slate-600 tracking-widest">
+              <span>{video.views.toLocaleString()} импульсов</span>
               <span>{new Date(video.postedAt).toLocaleDateString()}</span>
             </div>
-            {!summary && !loadingSummary && (
-              <button 
-                onClick={handleSummarize}
-                className="flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/30 px-5 py-2 rounded-full font-black text-[10px] uppercase tracking-[0.2em] text-cyan-400 hover:bg-cyan-500/20 transition-all cold-glow"
-              >
-                <Sparkles className="w-3 h-3" /> Нейро-инсайт
-              </button>
-            )}
+            <button onClick={handleSummarize} className="text-[9px] font-black uppercase tracking-widest text-cyan-500 bg-cyan-500/5 px-3 py-1 rounded-full border border-cyan-500/20">
+              Нейро-инсайт
+            </button>
           </div>
-          
-          <div className="space-y-6">
-            {loadingSummary && <div className="text-cyan-400 animate-pulse font-black uppercase tracking-widest text-[10px]">Обработка сигнала данных...</div>}
-            {summary && (
-              <div className="p-6 bg-cyan-500/5 border border-cyan-500/20 rounded-2xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-cyan-500"></div>
-                <p className="text-slate-300 leading-relaxed italic text-base">"{summary}"</p>
-              </div>
-            )}
-            <p className="whitespace-pre-line text-slate-500 leading-relaxed font-medium text-base">
-              {video.description || "Система: Метаданные сигнала не предоставлены."}
-            </p>
+          <div className="text-xs md:text-sm text-slate-400 leading-relaxed">
+            {summary && <p className="mb-4 text-cyan-100 italic p-3 bg-cyan-500/5 border-l-2 border-cyan-500 rounded-r-lg">"{summary}"</p>}
+            <p className="whitespace-pre-line">{video.description || "Система: Описание не обнаружено."}</p>
           </div>
         </div>
 
-        <div className="mt-16">
-          <div className="flex items-center gap-8 mb-10">
-             <h2 className="text-2xl font-black italic tracking-tighter uppercase">Обратная связь [{video.comments.length}]</h2>
-             <div className="h-px flex-1 bg-white/5"></div>
-          </div>
-
-          <form onSubmit={handlePostComment} className="flex gap-6 mb-12">
-            {userState.channel ? (
-              <>
-                <img src={userState.channel.avatar} className="w-12 h-12 rounded-xl border border-white/10" alt="" />
-                <div className="flex-1 space-y-4">
+        <div className="mt-12">
+           <h2 className="text-lg font-black italic tracking-tighter uppercase mb-6 flex items-center gap-3">
+             Обратная связь <span className="text-[10px] text-slate-700 font-black px-2 py-0.5 bg-slate-900 rounded-md">[{video.comments.length}]</span>
+           </h2>
+           <form onSubmit={handlePostComment} className="flex gap-4 mb-8">
+              {userState.channel ? (
+                <>
+                  <img src={userState.channel.avatar} className="w-10 h-10 rounded-lg" alt="" />
                   <input 
                     type="text"
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Введите протокол ответа..."
-                    className="w-full bg-transparent border-b border-slate-800 focus:border-cyan-500 outline-none py-3 font-bold text-sm uppercase tracking-widest transition-all"
+                    placeholder="Введите сигнал ответа..."
+                    className="flex-1 bg-transparent border-b border-slate-800 focus:border-cyan-500 outline-none py-2 font-bold text-xs uppercase"
                   />
-                  <div className="flex justify-end gap-4">
-                    <button 
-                      type="submit" 
-                      disabled={!newComment.trim()}
-                      className="px-8 py-2 bg-cyan-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest disabled:opacity-20 cold-glow transition-all"
-                    >
-                      Передать
-                    </button>
-                  </div>
+                  <button type="submit" className="px-4 py-2 bg-cyan-500 text-white rounded-lg text-[9px] font-black uppercase tracking-widest">OK</button>
+                </>
+              ) : (
+                <div className="w-full p-4 bg-slate-900/40 rounded-xl text-center text-[9px] font-black uppercase text-slate-700">Требуется узел связи для отправки</div>
+              )}
+           </form>
+           <div className="space-y-6">
+              {video.comments.map(c => (
+                <div key={c.id} className="flex gap-4">
+                   <img src={c.avatar} className="w-9 h-9 rounded-lg opacity-60" alt="" />
+                   <div>
+                      <p className="text-[9px] font-black text-cyan-500 mb-1">@{c.author.toLowerCase()}</p>
+                      <p className="text-xs text-slate-300 leading-snug">{c.text}</p>
+                   </div>
                 </div>
-              </>
-            ) : (
-              <div className="w-full p-6 bg-slate-900/40 border border-slate-800 rounded-2xl text-center text-slate-700 font-black uppercase tracking-widest text-xs">
-                Для обратной связи требуется идентификация узла.
-              </div>
-            )}
-          </form>
-
-          <div className="space-y-10">
-            {video.comments.map((comment) => (
-              <div key={comment.id} className="flex gap-6 group">
-                <img src={comment.avatar} className="w-12 h-12 rounded-xl grayscale group-hover:grayscale-0 transition-all border border-white/5" alt="" />
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-3">
-                    <span className="font-black text-cyan-500 uppercase text-[10px] tracking-widest">@{comment.author.replace(/\s+/g, '_').toLowerCase()}</span>
-                    <span className="text-slate-700 font-bold uppercase text-[10px] tracking-tighter">{comment.time}</span>
-                  </div>
-                  <p className="text-slate-300 text-base leading-snug">{comment.text}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+           </div>
         </div>
       </div>
 
-      <div className="lg:w-[450px] space-y-6">
-        <h3 className="font-black uppercase tracking-[0.3em] text-[10px] text-slate-600 italic px-2">Ближайшие сигналы</h3>
-        <div className="flex flex-col gap-4">
-          {allVideos.filter(v => v.id !== video.id).slice(0, 10).map(v => (
+      <div className="xl:w-[400px] space-y-4">
+        <h3 className="font-black uppercase tracking-widest text-[9px] text-slate-700 mb-4">Схожие сигналы</h3>
+        <div className="flex flex-col gap-3">
+          {allVideos.filter(v => v.id !== video.id).slice(0, 12).map(v => (
             <VideoCard key={v.id} video={v} layout="list" onClick={onVideoSelect} />
           ))}
         </div>

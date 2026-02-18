@@ -29,7 +29,8 @@ export interface UserState {
   channel: Channel | null;
   subscriptions: string[];
   likedVideos: string[];
-  history: string[]; // Store video IDs
+  archivedVideos: string[]; // Virtual "folder" storage
+  history: string[];
 }
 
 export interface Comment {
@@ -41,4 +42,4 @@ export interface Comment {
   time: string;
 }
 
-export type ViewMode = 'all' | 'user' | 'subs' | 'shorts' | 'liked' | 'history' | 'trending';
+export type ViewMode = 'all' | 'user' | 'subs' | 'shorts' | 'liked' | 'history' | 'trending' | 'archive';
