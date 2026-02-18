@@ -1,13 +1,13 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Users, Zap, CheckCircle, Radio } from 'lucide-react';
+import { Plus, CheckCircle, Radio, PlayCircle } from 'lucide-react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import VideoCard from './components/VideoCard';
 import VideoPlayer from './components/VideoPlayer';
 import UploadModal from './components/UploadModal';
 import ChannelModal from './components/ChannelModal';
-import { MOCK_VIDEOS, CATEGORIES } from './constants';
+import { CATEGORIES } from './constants';
 import { Video, UserState, Channel, Comment } from './types';
 
 const App: React.FC = () => {
@@ -16,7 +16,7 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   
-  // Core Application Data
+  // App Data
   const [videos, setVideos] = useState<Video[]>([]);
   const [userState, setUserState] = useState<UserState>({
     channel: null,
@@ -24,30 +24,29 @@ const App: React.FC = () => {
     likedVideos: []
   });
 
-  // Persistent stats for channels (subscriber counts)
+  // REAL Subscriber Stats: { [channelId]: number }
   const [channelStats, setChannelStats] = useState<Record<string, number>>({});
   
-  // UI State
+  // UI States
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isChannelModalOpen, setIsChannelModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'all' | 'user' | 'subs'>('all');
 
-  // Load from LocalStorage
+  // Persistence
   useEffect(() => {
-    const savedVideos = localStorage.getItem('gt_videos_v2');
-    const savedUser = localStorage.getItem('gt_user_v2');
-    const savedStats = localStorage.getItem('gt_stats_v2');
+    const savedVideos = localStorage.getItem('gt_v3_videos');
+    const savedUser = localStorage.getItem('gt_v3_user');
+    const savedStats = localStorage.getItem('gt_v3_stats');
     
     if (savedVideos) setVideos(JSON.parse(savedVideos));
     if (savedUser) setUserState(JSON.parse(savedUser));
     if (savedStats) setChannelStats(JSON.parse(savedStats));
   }, []);
 
-  // Sync to LocalStorage
   useEffect(() => {
-    localStorage.setItem('gt_videos_v2', JSON.stringify(videos));
-    localStorage.setItem('gt_user_v2', JSON.stringify(userState));
-    localStorage.setItem('gt_stats_v2', JSON.stringify(channelStats));
+    localStorage.setItem('gt_v3_videos', JSON.stringify(videos));
+    localStorage.setItem('gt_v3_user', JSON.stringify(userState));
+    localStorage.setItem('gt_v3_stats', JSON.stringify(channelStats));
   }, [videos, userState, channelStats]);
 
   const selectedVideo = useMemo(() => 
@@ -91,7 +90,6 @@ const App: React.FC = () => {
       setSelectedVideoId(null);
       setViewMode('user');
       setSearchQuery('');
-      setSelectedCategory('All');
     }
   };
 
@@ -117,7 +115,7 @@ const App: React.FC = () => {
       newVideo.channelAvatar = userState.channel.avatar;
     }
     newVideo.postedAt = Date.now();
-    newVideo.views = Math.floor(Math.random() * 10);
+    newVideo.views = 0;
     newVideo.likes = 0;
     newVideo.comments = [];
     
@@ -128,10 +126,10 @@ const App: React.FC = () => {
   const toggleLike = (videoId: string) => {
     setUserState(prev => {
       const isLiked = prev.likedVideos.includes(videoId);
-      const newLiked = isLiked 
-        ? prev.likedVideos.filter(id => id !== videoId)
-        : [...prev.likedVideos, videoId];
-      return { ...prev, likedVideos: newLiked };
+      return { 
+        ...prev, 
+        likedVideos: isLiked ? prev.likedVideos.filter(id => id !== videoId) : [...prev.likedVideos, videoId] 
+      };
     });
   };
 
@@ -140,16 +138,11 @@ const App: React.FC = () => {
     
     setUserState(prev => {
       const isSubbed = prev.subscriptions.includes(channelId);
-      const newSubs = isSubbed
-        ? prev.subscriptions.filter(id => id !== channelId)
-        : [...prev.subscriptions, channelId];
+      const newSubs = isSubbed ? prev.subscriptions.filter(id => id !== channelId) : [...prev.subscriptions, channelId];
       
-      setChannelStats(stats => {
-        const currentCount = stats[channelId] || 150; // Base count for "external" channels
-        return {
-          ...stats,
-          [channelId]: isSubbed ? Math.max(0, currentCount - 1) : currentCount + 1
-        };
+      setChannelStats(currentStats => {
+        const count = currentStats[channelId] || 0;
+        return { ...currentStats, [channelId]: isSubbed ? Math.max(0, count - 1) : count + 1 };
       });
 
       return { ...prev, subscriptions: newSubs };
@@ -157,11 +150,7 @@ const App: React.FC = () => {
   };
 
   const addComment = (videoId: string, comment: Comment) => {
-    setVideos(prev => prev.map(v => 
-      v.id === videoId 
-        ? { ...v, comments: [comment, ...v.comments] }
-        : v
-    ));
+    setVideos(prev => prev.map(v => v.id === videoId ? { ...v, comments: [comment, ...v.comments] } : v));
   };
 
   return (
@@ -191,7 +180,7 @@ const App: React.FC = () => {
           allVideos={videos}
           isLiked={userState.likedVideos.includes(selectedVideo.id)}
           isSubscribed={userState.subscriptions.includes(selectedVideo.channelId)}
-          subscriberCount={channelStats[selectedVideo.channelId] || (selectedVideo.channelId === userState.channel?.id ? 0 : 150)}
+          subscriberCount={channelStats[selectedVideo.channelId] || 0}
           onToggleLike={toggleLike}
           onToggleSubscribe={toggleSubscribe}
           onAddComment={addComment}
@@ -199,8 +188,7 @@ const App: React.FC = () => {
         />
       ) : (
         <main className={`transition-all duration-500 pt-14 ${isSidebarOpen ? 'md:ml-60' : 'md:ml-20'}`}>
-          {/* Sub-Header for Categories */}
-          <div className={`fixed top-14 right-0 ${isSidebarOpen ? 'md:left-60' : 'md:left-20'} bg-[#05070a]/95 backdrop-blur-xl z-30 flex items-center gap-3 px-6 py-4 overflow-x-auto no-scrollbar transition-all duration-500 border-b border-white/5`}>
+          <div className={`fixed top-14 right-0 ${isSidebarOpen ? 'md:left-60' : 'md:left-20'} bg-[#05070a]/90 backdrop-blur-xl z-30 flex items-center gap-3 px-6 py-4 overflow-x-auto no-scrollbar transition-all duration-500 border-b border-white/5`}>
             {CATEGORIES.map(cat => (
               <button
                 key={cat}
@@ -218,16 +206,16 @@ const App: React.FC = () => {
 
           <div className="p-0 mt-14">
             {viewMode === 'user' && userState.channel && (
-              <div className="w-full animate-in fade-in slide-in-from-top-4 duration-700 mb-10">
-                <div className="h-48 md:h-64 w-full bg-gradient-to-r from-slate-900 via-cyan-950/30 to-slate-900 border-b border-white/5 relative overflow-hidden">
-                  <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
+              <div className="w-full animate-feed mb-10">
+                <div className="h-48 md:h-64 w-full bg-gradient-to-r from-slate-900 via-cyan-950/20 to-slate-900 border-b border-white/5 relative overflow-hidden">
+                   <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
                 </div>
                 <div className="max-w-[1400px] mx-auto px-6 md:px-10 -mt-16 flex flex-col md:flex-row items-center md:items-end gap-6 pb-8 border-b border-white/5">
                   <div className="relative group">
                     <img 
                       src={userState.channel.avatar} 
                       className="w-32 h-32 md:w-40 md:h-40 rounded-3xl object-cover border-4 border-[#05070a] shadow-2xl relative z-10" 
-                      alt="Avatar" 
+                      alt="Profile" 
                     />
                     <div className="absolute -inset-2 bg-cyan-500 rounded-[2.5rem] blur opacity-20 group-hover:opacity-40 transition-all duration-500"></div>
                   </div>
@@ -237,14 +225,11 @@ const App: React.FC = () => {
                       <CheckCircle className="w-6 h-6 text-cyan-400" />
                     </h1>
                     <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-sm mt-1">
-                      {userState.channel.handle} • {filteredVideos.length} Signals • {channelStats[userState.channel.id] || 0} Nodes
+                      {userState.channel.handle} • {filteredVideos.length} Broadcasts • {channelStats[userState.channel.id] || 0} Nodes Linked
                     </p>
                   </div>
-                  <button 
-                    onClick={handleUploadClick}
-                    className="mb-2 bg-white text-black px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs hover:scale-105 active:scale-95 transition-all shadow-xl"
-                  >
-                    Initiate Uplink
+                  <button onClick={handleUploadClick} className="mb-2 bg-white text-black px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs hover:scale-105 active:scale-95 transition-all shadow-xl">
+                    New Broadcast
                   </button>
                 </div>
               </div>
@@ -254,12 +239,12 @@ const App: React.FC = () => {
               <div className="mb-10 flex items-center justify-between">
                 <h2 className="text-3xl font-black italic tracking-tighter uppercase flex items-center gap-4">
                   <span className="w-1.5 h-8 bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,1)]"></span>
-                  {viewMode === 'user' ? 'Local Buffer' : viewMode === 'subs' ? 'Subscribed Nodes' : 'Global Network'}
+                  {viewMode === 'user' ? 'Local Archive' : viewMode === 'subs' ? 'Linked Networks' : 'Global Feed'}
                 </h2>
               </div>
 
               {filteredVideos.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-8 gap-y-14">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-8 gap-y-14 animate-feed">
                   {filteredVideos.map(video => (
                     <VideoCard 
                       key={video.id} 
@@ -269,17 +254,11 @@ const App: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-[40vh] border-2 border-dashed border-slate-900 rounded-[3rem] group bg-slate-900/5 transition-all hover:bg-slate-900/10">
+                <div className="flex flex-col items-center justify-center h-[40vh] border-2 border-dashed border-slate-900 rounded-[3rem] bg-slate-900/5 group">
                   <div className="w-20 h-20 bg-slate-900 rounded-2xl flex items-center justify-center mb-6 border border-white/5 group-hover:border-cyan-500/30 transition-all">
-                    <Plus className="w-8 h-8 text-slate-700 group-hover:text-cyan-500" />
+                    <PlayCircle className="w-8 h-8 text-slate-800 group-hover:text-cyan-600 transition-colors" />
                   </div>
-                  <p className="text-xl font-black italic text-slate-700 uppercase tracking-tighter">Sector is currently silent</p>
-                  <button 
-                    onClick={handleUploadClick}
-                    className="mt-6 text-cyan-500 font-black uppercase tracking-widest text-xs hover:text-cyan-400 underline underline-offset-8"
-                  >
-                    Broadcast first signal
-                  </button>
+                  <p className="text-xl font-black italic text-slate-800 uppercase tracking-tighter">No signals detected in this sector</p>
                 </div>
               )}
             </div>
