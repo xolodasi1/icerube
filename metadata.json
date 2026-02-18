@@ -1,0 +1,7 @@
+{
+  "name": "icetube",
+  "description": "A feature-rich YouTube clone built with React and Tailwind, featuring AI-powered video summaries using Gemini.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
