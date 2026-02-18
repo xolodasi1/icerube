@@ -8,13 +8,13 @@ export interface Video {
   channelAvatar: string;
   views: number;
   likes: number;
-  postedAt: number; // timestamp
+  postedAt: number;
   duration: string;
   description: string;
   category: string;
   videoUrl?: string;
   isUserUploaded?: boolean;
-  comments: Comment[]; // Now comments are part of the video object
+  comments: Comment[];
 }
 
 export interface Channel {
@@ -27,8 +27,9 @@ export interface Channel {
 
 export interface UserState {
   channel: Channel | null;
-  subscriptions: string[]; // array of channel IDs
-  likedVideos: string[]; // array of video IDs
+  subscriptions: string[];
+  likedVideos: string[];
+  history: string[]; // Store video IDs
 }
 
 export interface Comment {
@@ -40,4 +41,4 @@ export interface Comment {
   time: string;
 }
 
-export type Category = 'All' | 'Music' | 'Gaming' | 'News' | 'Tech' | 'Education' | 'Entertainment';
+export type ViewMode = 'all' | 'user' | 'subs' | 'shorts' | 'liked' | 'history' | 'trending';
