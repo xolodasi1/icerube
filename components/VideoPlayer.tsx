@@ -56,7 +56,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       avatar: userState.channel.avatar,
       text: newComment,
       likes: 0,
-      time: 'Just now'
+      time: 'Только что'
     };
 
     onAddComment(video.id, comment);
@@ -92,7 +92,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   {video.channelName}
                   <CheckCircle className="w-5 h-5 text-cyan-400" />
                 </p>
-                <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">{subscriberCount.toLocaleString()} Nodes Attached</p>
+                <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">{subscriberCount.toLocaleString()} Узлов привязано</p>
               </div>
               
               {video.channelId !== userState.channel?.id && (
@@ -105,7 +105,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   }`}
                 >
                   {isSubscribed ? <BellRing className="w-3 h-3" /> : <Bell className="w-3 h-3" />}
-                  {isSubscribed ? 'Attached' : 'Attach Node'}
+                  {isSubscribed ? 'Связано' : 'Связать узел'}
                 </button>
               )}
             </div>
@@ -124,7 +124,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 </button>
               </div>
               <button className="flex items-center gap-2 bg-slate-900/50 border border-slate-800 px-6 py-2 h-12 rounded-xl hover:bg-slate-800 transition-all font-black text-[10px] uppercase tracking-widest text-slate-400">
-                <Share2 className="w-4 h-4" /> Relink
+                <Share2 className="w-4 h-4" /> Поделиться
               </button>
             </div>
           </div>
@@ -133,7 +133,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         <div className="mt-8 bg-slate-900/30 border border-white/5 rounded-[2rem] p-8 text-sm group">
           <div className="flex items-center justify-between mb-6">
             <div className="font-black italic uppercase tracking-widest text-slate-500 text-xs flex gap-6">
-              <span>{video.views.toLocaleString()} Pulses</span>
+              <span>{video.views.toLocaleString()} Импульсов</span>
               <span>{new Date(video.postedAt).toLocaleDateString()}</span>
             </div>
             {!summary && !loadingSummary && (
@@ -141,13 +141,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 onClick={handleSummarize}
                 className="flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/30 px-5 py-2 rounded-full font-black text-[10px] uppercase tracking-[0.2em] text-cyan-400 hover:bg-cyan-500/20 transition-all cold-glow"
               >
-                <Sparkles className="w-3 h-3" /> Neural Insight
+                <Sparkles className="w-3 h-3" /> Нейро-инсайт
               </button>
             )}
           </div>
           
           <div className="space-y-6">
-            {loadingSummary && <div className="text-cyan-400 animate-pulse font-black uppercase tracking-widest text-[10px]">Processing data signal...</div>}
+            {loadingSummary && <div className="text-cyan-400 animate-pulse font-black uppercase tracking-widest text-[10px]">Обработка сигнала данных...</div>}
             {summary && (
               <div className="p-6 bg-cyan-500/5 border border-cyan-500/20 rounded-2xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-cyan-500"></div>
@@ -155,14 +155,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </div>
             )}
             <p className="whitespace-pre-line text-slate-500 leading-relaxed font-medium text-base">
-              {video.description || "System: No signal metadata provided."}
+              {video.description || "Система: Метаданные сигнала не предоставлены."}
             </p>
           </div>
         </div>
 
         <div className="mt-16">
           <div className="flex items-center gap-8 mb-10">
-             <h2 className="text-2xl font-black italic tracking-tighter uppercase">Feedback Loop [{video.comments.length}]</h2>
+             <h2 className="text-2xl font-black italic tracking-tighter uppercase">Обратная связь [{video.comments.length}]</h2>
              <div className="h-px flex-1 bg-white/5"></div>
           </div>
 
@@ -175,7 +175,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     type="text"
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Enter response protocol..."
+                    placeholder="Введите протокол ответа..."
                     className="w-full bg-transparent border-b border-slate-800 focus:border-cyan-500 outline-none py-3 font-bold text-sm uppercase tracking-widest transition-all"
                   />
                   <div className="flex justify-end gap-4">
@@ -184,14 +184,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                       disabled={!newComment.trim()}
                       className="px-8 py-2 bg-cyan-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest disabled:opacity-20 cold-glow transition-all"
                     >
-                      Transmit
+                      Передать
                     </button>
                   </div>
                 </div>
               </>
             ) : (
               <div className="w-full p-6 bg-slate-900/40 border border-slate-800 rounded-2xl text-center text-slate-700 font-black uppercase tracking-widest text-xs">
-                Node identification required for feedback.
+                Для обратной связи требуется идентификация узла.
               </div>
             )}
           </form>
@@ -214,7 +214,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       </div>
 
       <div className="lg:w-[450px] space-y-6">
-        <h3 className="font-black uppercase tracking-[0.3em] text-[10px] text-slate-600 italic px-2">Network Proximity</h3>
+        <h3 className="font-black uppercase tracking-[0.3em] text-[10px] text-slate-600 italic px-2">Ближайшие сигналы</h3>
         <div className="flex flex-col gap-4">
           {allVideos.filter(v => v.id !== video.id).slice(0, 10).map(v => (
             <VideoCard key={v.id} video={v} layout="list" onClick={onVideoSelect} />

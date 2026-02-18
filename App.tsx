@@ -5,48 +5,59 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import VideoCard from './components/VideoCard';
 import VideoPlayer from './components/VideoPlayer';
+import ShortsFeed from './components/ShortsFeed';
 import UploadModal from './components/UploadModal';
 import ChannelModal from './components/ChannelModal';
-import { CATEGORIES } from './constants';
+import { CATEGORIES, MOCK_VIDEOS } from './constants';
 import { Video, UserState, Channel, Comment } from './types';
 
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState('Все');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   
-  // App Data
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [userState, setUserState] = useState<UserState>({
-    channel: null,
-    subscriptions: [],
-    likedVideos: []
+  // App Data - Initialize with MOCK_VIDEOS to avoid black screen on first load
+  const [videos, setVideos] = useState<Video[]>(MOCK_VIDEOS);
+  const [userState, setUserState] = useState<UserState>(() => {
+    const saved = localStorage.getItem('gt_v6_user');
+    return saved ? JSON.parse(saved) : {
+      channel: null,
+      subscriptions: [],
+      likedVideos: []
+    };
   });
 
-  // REAL Subscriber Stats: { [channelId]: number }
-  const [channelStats, setChannelStats] = useState<Record<string, number>>({});
+  const [channelStats, setChannelStats] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('gt_v6_stats');
+    return saved ? JSON.parse(saved) : {};
+  });
   
   // UI States
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isChannelModalOpen, setIsChannelModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'all' | 'user' | 'subs'>('all');
+  const [viewMode, setViewMode] = useState<'all' | 'user' | 'subs' | 'shorts'>('all');
 
-  // Persistence
+  // Persistence - Initial Load
   useEffect(() => {
-    const savedVideos = localStorage.getItem('gt_v3_videos');
-    const savedUser = localStorage.getItem('gt_v3_user');
-    const savedStats = localStorage.getItem('gt_v3_stats');
-    
-    if (savedVideos) setVideos(JSON.parse(savedVideos));
-    if (savedUser) setUserState(JSON.parse(savedUser));
-    if (savedStats) setChannelStats(JSON.parse(savedStats));
+    const savedVideos = localStorage.getItem('gt_v6_videos');
+    if (savedVideos) {
+      try {
+        const parsed = JSON.parse(savedVideos);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setVideos(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to parse saved videos", e);
+      }
+    }
   }, []);
 
+  // Persistence - Sync Changes
   useEffect(() => {
-    localStorage.setItem('gt_v3_videos', JSON.stringify(videos));
-    localStorage.setItem('gt_v3_user', JSON.stringify(userState));
-    localStorage.setItem('gt_v3_stats', JSON.stringify(channelStats));
+    localStorage.setItem('gt_v6_videos', JSON.stringify(videos));
+    localStorage.setItem('gt_v6_user', JSON.stringify(userState));
+    localStorage.setItem('gt_v6_stats', JSON.stringify(channelStats));
   }, [videos, userState, channelStats]);
 
   const selectedVideo = useMemo(() => 
@@ -60,9 +71,14 @@ const App: React.FC = () => {
       results = results.filter(v => v.channelId === userState.channel?.id);
     } else if (viewMode === 'subs') {
       results = results.filter(v => userState.subscriptions.includes(v.channelId));
+    } else if (viewMode === 'shorts') {
+      results = results.filter(v => 
+        v.category === 'Шортсы' || 
+        (v.duration && (v.duration.startsWith('0:') || v.duration.length <= 4))
+      );
     }
     
-    if (selectedCategory !== 'All') {
+    if (selectedCategory !== 'Все') {
       results = results.filter(v => v.category === selectedCategory);
     }
     
@@ -73,13 +89,14 @@ const App: React.FC = () => {
         v.channelName.toLowerCase().includes(q)
       );
     }
-    return results.sort((a, b) => b.postedAt - a.postedAt);
+    // Safety check for postedAt
+    return results.sort((a, b) => (b.postedAt || 0) - (a.postedAt || 0));
   }, [videos, selectedCategory, searchQuery, userState, viewMode]);
 
   const handleHomeClick = () => {
     setSelectedVideoId(null);
     setSearchQuery('');
-    setSelectedCategory('All');
+    setSelectedCategory('Все');
     setViewMode('all');
   };
 
@@ -135,16 +152,13 @@ const App: React.FC = () => {
 
   const toggleSubscribe = (channelId: string) => {
     if (channelId === userState.channel?.id) return;
-    
     setUserState(prev => {
       const isSubbed = prev.subscriptions.includes(channelId);
       const newSubs = isSubbed ? prev.subscriptions.filter(id => id !== channelId) : [...prev.subscriptions, channelId];
-      
       setChannelStats(currentStats => {
         const count = currentStats[channelId] || 0;
         return { ...currentStats, [channelId]: isSubbed ? Math.max(0, count - 1) : count + 1 };
       });
-
       return { ...prev, subscriptions: newSubs };
     });
   };
@@ -186,6 +200,14 @@ const App: React.FC = () => {
           onAddComment={addComment}
           userState={userState}
         />
+      ) : viewMode === 'shorts' ? (
+        <main className={`transition-all duration-500 pt-14 ${isSidebarOpen ? 'md:ml-60' : 'md:ml-20'}`}>
+          <ShortsFeed 
+            videos={filteredVideos} 
+            onToggleLike={toggleLike}
+            userState={userState}
+          />
+        </main>
       ) : (
         <main className={`transition-all duration-500 pt-14 ${isSidebarOpen ? 'md:ml-60' : 'md:ml-20'}`}>
           <div className={`fixed top-14 right-0 ${isSidebarOpen ? 'md:left-60' : 'md:left-20'} bg-[#05070a]/90 backdrop-blur-xl z-30 flex items-center gap-3 px-6 py-4 overflow-x-auto no-scrollbar transition-all duration-500 border-b border-white/5`}>
@@ -225,11 +247,11 @@ const App: React.FC = () => {
                       <CheckCircle className="w-6 h-6 text-cyan-400" />
                     </h1>
                     <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-sm mt-1">
-                      {userState.channel.handle} • {filteredVideos.length} Broadcasts • {channelStats[userState.channel.id] || 0} Nodes Linked
+                      {userState.channel.handle} • {filteredVideos.length} Трансляций • {channelStats[userState.channel.id] || 0} Узлов привязано
                     </p>
                   </div>
                   <button onClick={handleUploadClick} className="mb-2 bg-white text-black px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs hover:scale-105 active:scale-95 transition-all shadow-xl">
-                    New Broadcast
+                    Новая трансляция
                   </button>
                 </div>
               </div>
@@ -239,7 +261,7 @@ const App: React.FC = () => {
               <div className="mb-10 flex items-center justify-between">
                 <h2 className="text-3xl font-black italic tracking-tighter uppercase flex items-center gap-4">
                   <span className="w-1.5 h-8 bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,1)]"></span>
-                  {viewMode === 'user' ? 'Local Archive' : viewMode === 'subs' ? 'Linked Networks' : 'Global Feed'}
+                  {viewMode === 'user' ? 'Локальный архив' : viewMode === 'subs' ? 'Связанные узлы' : 'Глобальная лента'}
                 </h2>
               </div>
 
@@ -258,7 +280,7 @@ const App: React.FC = () => {
                   <div className="w-20 h-20 bg-slate-900 rounded-2xl flex items-center justify-center mb-6 border border-white/5 group-hover:border-cyan-500/30 transition-all">
                     <PlayCircle className="w-8 h-8 text-slate-800 group-hover:text-cyan-600 transition-colors" />
                   </div>
-                  <p className="text-xl font-black italic text-slate-800 uppercase tracking-tighter">No signals detected in this sector</p>
+                  <p className="text-xl font-black italic text-slate-800 uppercase tracking-tighter">Сигналы в данном секторе отсутствуют</p>
                 </div>
               )}
             </div>

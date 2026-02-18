@@ -12,7 +12,7 @@ interface UploadModalProps {
 const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Entertainment');
+  const [category, setCategory] = useState('Развлечения');
   const [file, setFile] = useState<File | null>(null);
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -28,7 +28,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload }) => {
       video.playsInline = true;
 
       video.onloadedmetadata = () => {
-        video.currentTime = 1; // Seek to 1 second
+        video.currentTime = 1;
       };
 
       video.onseeked = () => {
@@ -59,8 +59,6 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload }) => {
     if (!file || !title || !thumbnail) return;
 
     setIsUploading(true);
-
-    // Simulate upload delay
     setTimeout(() => {
       const videoUrl = URL.createObjectURL(file);
       const newVideo: Video = {
@@ -69,13 +67,13 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload }) => {
         description,
         category,
         thumbnail: thumbnail,
-        channelId: '', // Filled by App.tsx
+        channelId: '', 
         channelName: '', 
         channelAvatar: '',
         views: 0,
         likes: 0,
         postedAt: Date.now(),
-        duration: '0:00', // In a real app we'd get this from metadata
+        duration: '3:00',
         videoUrl,
         isUserUploaded: true,
         comments: []
@@ -91,8 +89,8 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload }) => {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
       <div className="glass w-full max-w-2xl rounded-3xl overflow-hidden shadow-[0_0_100px_rgba(6,182,212,0.1)] border border-cyan-500/20">
         <div className="flex items-center justify-between p-6 border-b border-white/5 bg-slate-900/20">
-          <h2 className="text-2xl font-black italic tracking-tighter text-cyan-400 flex items-center gap-3">
-            <Upload className="w-6 h-6" /> DATA_UPLINK
+          <h2 className="text-2xl font-black italic tracking-tighter text-cyan-400 flex items-center gap-3 uppercase">
+            <Upload className="w-6 h-6" /> Загрузка_Сигнала
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
             <X className="w-6 h-6 text-slate-500" />
@@ -109,8 +107,8 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload }) => {
                 <Film className="w-10 h-10 text-cyan-500" />
               </div>
               <div className="text-center space-y-2">
-                <p className="text-xl font-black uppercase tracking-widest text-slate-300">Select Neural Package</p>
-                <p className="text-xs text-slate-600 font-bold uppercase tracking-widest">MP4, WEBM, MKV // MAX 500MB</p>
+                <p className="text-xl font-black uppercase tracking-widest text-slate-300">Выберите нейро-пакет</p>
+                <p className="text-xs text-slate-600 font-bold uppercase tracking-widest">MP4, WEBM, MKV // МАКС 500MB</p>
               </div>
               <input 
                 type="file" 
@@ -135,35 +133,35 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload }) => {
                 <div className="flex-1 min-w-0">
                    <p className="text-sm font-black uppercase tracking-wider truncate text-cyan-100">{file.name}</p>
                    <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
-                     {isGeneratingThumbnail ? 'Extracting Preview...' : 'Signal Ready'}
+                     {isGeneratingThumbnail ? 'Извлечение превью...' : 'Сигнал готов'}
                    </p>
                 </div>
-                <button type="button" onClick={() => {setFile(null); setThumbnail(null);}} className="text-xs font-black text-slate-500 hover:text-white uppercase tracking-tighter transition-colors px-3">Reset</button>
+                <button type="button" onClick={() => {setFile(null); setThumbnail(null);}} className="text-xs font-black text-slate-500 hover:text-white uppercase tracking-tighter transition-colors px-3">Сброс</button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
-                    <FileText className="w-3 h-3" /> Uplink Label
+                    <FileText className="w-3 h-3" /> Название трансляции
                   </label>
                   <input
                     required
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="ENTER TITLE..."
+                    placeholder="ВВЕДИТЕ ЗАГОЛОВОК..."
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 focus:border-cyan-500 outline-none transition-all font-bold text-sm uppercase"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Signal Category</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Категория сигнала</label>
                   <select 
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 focus:border-cyan-500 outline-none transition-all appearance-none font-bold text-sm uppercase"
                   >
-                    {CATEGORIES.filter(c => c !== 'All').map(c => (
+                    {CATEGORIES.filter(c => c !== 'Все').map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
@@ -171,12 +169,12 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload }) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Signal Content Brief</label>
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Краткое содержание</label>
                 <textarea
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="DESCRIBE THE DATA SIGNAL..."
+                  placeholder="ОПИШИТЕ ДАННЫЙ СИГНАЛ..."
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 focus:border-cyan-500 outline-none transition-all resize-none font-medium text-sm"
                 />
               </div>
@@ -189,7 +187,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload }) => {
               onClick={onClose}
               className="px-8 py-3 rounded-xl hover:bg-white/5 font-black uppercase tracking-widest text-xs text-slate-500 hover:text-white transition-all"
             >
-              Abort
+              Отмена
             </button>
             <button 
               disabled={!file || !title || !thumbnail || isUploading}
@@ -203,11 +201,11 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload }) => {
               {isUploading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                  Uploading...
+                  Загрузка...
                 </>
               ) : (
                 <>
-                  <Zap className="w-4 h-4 fill-white" /> Start Broadcast
+                  <Zap className="w-4 h-4 fill-white" /> Запустить эфир
                 </>
               )}
             </button>

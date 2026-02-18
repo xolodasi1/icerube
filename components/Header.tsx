@@ -7,7 +7,7 @@ interface HeaderProps {
   toggleSidebar: () => void;
   onHomeClick: () => void;
   onUploadClick: () => void;
-  onProfileClick: () => void; // New prop
+  onProfileClick: () => void;
   userAvatar?: string;
 }
 
@@ -53,7 +53,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch, toggleSidebar, onHomeClick, o
             <Search className="w-4 h-4 text-slate-600 mr-3 group-focus-within:text-cyan-400 transition-colors" />
             <input
               type="text"
-              placeholder="Search neural network..."
+              placeholder="Поиск в нейросети..."
               className="bg-transparent outline-none w-full text-white placeholder-slate-700 text-xs font-bold uppercase tracking-widest"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -74,7 +74,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch, toggleSidebar, onHomeClick, o
           className="flex items-center gap-2 bg-gradient-to-r from-cyan-600/10 to-blue-600/10 hover:from-cyan-500/20 hover:to-blue-500/20 border border-cyan-500/30 px-4 py-2 rounded-xl transition-all group cold-glow active:scale-95"
         >
           <Zap className="w-4 h-4 text-cyan-400 group-hover:animate-pulse" />
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden lg:block text-cyan-100">Broadcast</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden lg:block text-cyan-100">Трансляция</span>
         </button>
         
         <button className="p-2.5 hover:bg-white/5 rounded-xl relative transition-colors group">

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Home, Compass, PlaySquare, Clock, ThumbsUp, ChevronRight, UserCircle, History, Flame, Music2, Gamepad2, Trophy, Settings, HelpCircle, MessageSquare, Library, Radio } from 'lucide-react';
+import { Home, Compass, PlaySquare, Clock, ThumbsUp, ChevronRight, UserCircle, History, Flame, Music2, Gamepad2, Trophy, Settings, HelpCircle, MessageSquare, Library, Radio, Zap } from 'lucide-react';
 
 interface SidebarItemProps {
   icon: React.ElementType;
@@ -27,8 +27,8 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, active, on
 
 interface SidebarProps {
   isOpen: boolean;
-  onModeChange?: (mode: 'all' | 'user' | 'subs') => void;
-  currentMode?: 'all' | 'user' | 'subs';
+  onModeChange?: (mode: 'all' | 'user' | 'subs' | 'shorts') => void;
+  currentMode?: 'all' | 'user' | 'subs' | 'shorts';
   hasSubscribed?: boolean;
 }
 
@@ -38,15 +38,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onModeChange, currentMode, ha
       <div className="flex flex-col gap-10">
         <div onClick={() => onModeChange?.('all')} className={`flex flex-col items-center gap-2 cursor-pointer group transition-all ${currentMode === 'all' ? 'text-cyan-400' : 'text-slate-700 hover:text-slate-400'}`}>
           <Home className="w-6 h-6 group-hover:scale-110 transition-transform" />
-          <span className="text-[8px] font-black uppercase tracking-tighter">Uplink</span>
+          <span className="text-[8px] font-black uppercase tracking-tighter">Эфир</span>
+        </div>
+        <div onClick={() => onModeChange?.('shorts')} className={`flex flex-col items-center gap-2 cursor-pointer group transition-all ${currentMode === 'shorts' ? 'text-cyan-400' : 'text-slate-700 hover:text-slate-400'}`}>
+          <Zap className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          <span className="text-[8px] font-black uppercase tracking-tighter">Шортс</span>
         </div>
         <div onClick={() => onModeChange?.('subs')} className={`flex flex-col items-center gap-2 cursor-pointer group transition-all ${currentMode === 'subs' ? 'text-cyan-400' : 'text-slate-700 hover:text-slate-400'}`}>
           <Radio className="w-6 h-6 group-hover:scale-110 transition-transform" />
-          <span className="text-[8px] font-black uppercase tracking-tighter">Nodes</span>
-        </div>
-        <div onClick={() => onModeChange?.('user')} className={`flex flex-col items-center gap-2 cursor-pointer group transition-all ${currentMode === 'user' ? 'text-cyan-400' : 'text-slate-700 hover:text-slate-400'}`}>
-          <Library className="w-6 h-6 group-hover:scale-110 transition-transform" />
-          <span className="text-[8px] font-black uppercase tracking-tighter">Vault</span>
+          <span className="text-[8px] font-black uppercase tracking-tighter">Узлы</span>
         </div>
       </div>
     </aside>
@@ -57,14 +57,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onModeChange, currentMode, ha
       <div className="flex flex-col gap-1.5 border-b border-white/5 pb-6">
         <SidebarItem 
           icon={Home} 
-          label="Stream Feed" 
+          label="Главная лента" 
           active={currentMode === 'all'} 
           onClick={() => onModeChange?.('all')}
         />
-        <SidebarItem icon={Compass} label="Neural Shorts" />
+        <SidebarItem 
+          icon={Zap} 
+          label="Нейро-Шортсы" 
+          active={currentMode === 'shorts'}
+          onClick={() => onModeChange?.('shorts')}
+        />
         <SidebarItem 
           icon={Radio} 
-          label="Node Updates" 
+          label="Подписки (Узлы)" 
           active={currentMode === 'subs'}
           onClick={() => onModeChange?.('subs')}
         />
@@ -72,31 +77,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onModeChange, currentMode, ha
       
       <div className="mt-6 flex flex-col gap-1.5 border-b border-white/5 pb-6">
         <h3 className="px-4 py-2 text-[10px] font-black text-slate-700 uppercase tracking-[0.3em] flex items-center justify-between italic">
-          User Database <ChevronRight className="w-3 h-3" />
+          База данных <ChevronRight className="w-3 h-3" />
         </h3>
-        <SidebarItem icon={UserCircle} label="Profile Stats" />
-        <SidebarItem icon={History} label="Neural Logs" />
+        <SidebarItem icon={UserCircle} label="Мой профиль" />
+        <SidebarItem icon={History} label="Лог событий" />
         <SidebarItem 
           icon={PlaySquare} 
-          label="Stored Uplinks" 
+          label="Ваши сигналы" 
           active={currentMode === 'user'} 
           onClick={() => onModeChange?.('user')}
         />
-        <SidebarItem icon={Clock} label="Queued Files" />
-        <SidebarItem icon={ThumbsUp} label="Endorsed Data" />
+        <SidebarItem icon={Clock} label="Отложенные" />
+        <SidebarItem icon={ThumbsUp} label="Одобрено" />
       </div>
 
       <div className="mt-6 flex flex-col gap-1.5 border-b border-white/5 pb-6">
-        <h3 className="px-4 py-2 text-[10px] font-black text-slate-700 uppercase tracking-[0.3em] italic">Network Exploration</h3>
-        <SidebarItem icon={Flame} label="Trending Signals" />
-        <SidebarItem icon={Music2} label="Audio Waves" />
-        <SidebarItem icon={Gamepad2} label="Logic Simulation" />
-        <SidebarItem icon={Trophy} label="Protocol Wins" />
+        <h3 className="px-4 py-2 text-[10px] font-black text-slate-700 uppercase tracking-[0.3em] italic">Исследование сети</h3>
+        <SidebarItem icon={Flame} label="Тренды" />
+        <SidebarItem icon={Music2} label="Аудиоволны" />
+        <SidebarItem icon={Gamepad2} label="Симуляции" />
+        <SidebarItem icon={Trophy} label="Достижения" />
       </div>
 
       <div className="mt-6 flex flex-col gap-1.5 pb-20 opacity-40 hover:opacity-100 transition-opacity duration-500">
-        <SidebarItem icon={Settings} label="Core Config" />
-        <SidebarItem icon={HelpCircle} label="Neural Support" />
+        <SidebarItem icon={Settings} label="Конфигурация" />
+        <SidebarItem icon={HelpCircle} label="Техподдержка" />
       </div>
     </aside>
   );
