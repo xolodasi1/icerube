@@ -81,21 +81,51 @@ const App: React.FC = () => {
       setIsLoading(true);
       try {
         const response = await fetch('/api/videos');
+        let serverVideos = [];
         if (response.ok) {
-          const serverVideos = await response.json();
+          serverVideos = await response.json();
+        }
+
+        if (serverVideos.length > 0) {
           setVideos(prev => {
             const unique = serverVideos.filter((nv: Video) => !prev.find(pv => pv.id === nv.id));
             return [...unique, ...prev];
           });
+        } else {
+          // Fallback: If server is empty (e.g. after restart), fetch trends from Gemini
+          const trends = await fetchRealVideos("Trending world videos 2025");
+          setVideos(trends);
         }
       } catch (e) {
         console.error("Failed to fetch initial videos", e);
+        // Even on error, try to show something
+        const trends = await fetchRealVideos("Trending world videos 2025");
+        setVideos(trends);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadInitialVideos();
+
+    // Fallback polling for serverless environments where WebSockets might fail
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch('/api/videos');
+        if (response.ok) {
+          const latestVideos = await response.json();
+          setVideos(prev => {
+            const newOnes = latestVideos.filter((nv: Video) => !prev.find(pv => pv.id === nv.id));
+            if (newOnes.length === 0) return prev;
+            return [...newOnes, ...prev];
+          });
+        }
+      } catch (e) {
+        // Silent fail for polling
+      }
+    }, 15000); // Check every 15 seconds
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -323,9 +353,21 @@ const App: React.FC = () => {
         <UploadModal 
           onClose={() => setIsUploadModalOpen(false)} 
           channel={userState.channel}
-          onUpload={(v) => {
-            setVideos([v, ...videos]);
+          onUpload={async (v) => {
+            setVideos(prev => [v, ...prev]);
+            // 1. Notify via socket for immediate update if connected
             socket?.emit('video:upload', v);
+            
+            // 2. Persist to server via POST (more reliable for serverless)
+            try {
+              await fetch('/api/videos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(v)
+              });
+            } catch (e) {
+              console.error("Failed to persist video to server", e);
+            }
           }} 
         />
       )}

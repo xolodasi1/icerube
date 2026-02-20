@@ -8,6 +8,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { createClient } from "@supabase/supabase-js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,85 +24,85 @@ const io = new Server(httpServer, {
 
 const PORT = 3000;
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, "public", "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Supabase Initialization
+const supabaseUrl = process.env.SUPABASE_URL || "";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.warn("WARNING: Supabase environment variables are missing. Persistence will not work.");
 }
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 app.use(cors());
 app.use(express.json());
-app.use("/uploads", express.static(uploadsDir));
 
-// Multer config
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ storage });
-
-// In-memory store for videos
-let videos: any[] = [
-  {
-    id: 'init-1',
-    title: 'Добро пожаловать в IceTube',
-    description: 'Первое видео в нашей новой сети.',
-    category: 'Развлечения',
-    thumbnail: 'https://picsum.photos/seed/ice1/800/450',
-    channelId: 'system',
-    channelName: 'IceTube System',
-    channelAvatar: 'https://picsum.photos/seed/system/100/100',
-    views: 1234,
-    likes: 56,
-    postedAt: Date.now() - 3600000,
-    duration: '1:45',
-    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    isUserUploaded: true,
-    comments: []
-  },
-  {
-    id: 'init-2',
-    title: 'Демонстрация нейросети',
-    description: 'Как работает наш поиск.',
-    category: 'Технологии',
-    thumbnail: 'https://picsum.photos/seed/ice2/800/450',
-    channelId: 'system',
-    channelName: 'IceTube System',
-    channelAvatar: 'https://picsum.photos/seed/system/100/100',
-    views: 890,
-    likes: 42,
-    postedAt: Date.now() - 7200000,
-    duration: '2:15',
-    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    isUserUploaded: true,
-    comments: []
-  }
-];
+// Multer config for temporary storage before uploading to Supabase
+const upload = multer({ storage: multer.memoryStorage() });
 
 // API Routes
-app.get("/api/videos", (req, res) => {
-  res.json(videos);
-});
-
-app.post("/api/upload", upload.single("video"), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: "No file uploaded" });
+app.get("/api/videos", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('videos')
+      .select('*')
+      .order('postedAt', { ascending: false });
+    
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) {
+    console.error("Error fetching videos:", error);
+    res.status(500).json({ error: "Failed to fetch videos" });
   }
-  const videoUrl = `/uploads/${req.file.filename}`;
-  res.json({ videoUrl });
 });
 
-app.post("/api/videos", (req, res) => {
-  const newVideo = req.body;
-  videos = [newVideo, ...videos];
-  io.emit("video:new", newVideo);
-  res.status(201).json(newVideo);
+app.post("/api/upload", upload.single("video"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const file = req.file;
+    const fileExt = path.extname(file.originalname);
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}${fileExt}`;
+    const filePath = `videos/${fileName}`;
+
+    const { data, error } = await supabase.storage
+      .from('icetube-assets')
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false
+      });
+
+    if (error) throw error;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('icetube-assets')
+      .getPublicUrl(filePath);
+
+    res.json({ videoUrl: publicUrl });
+  } catch (error) {
+    console.error("Upload error:", error);
+    res.status(500).json({ error: "Upload failed" });
+  }
+});
+
+app.post("/api/videos", async (req, res) => {
+  try {
+    const newVideo = req.body;
+    const { data, error } = await supabase
+      .from('videos')
+      .insert([newVideo])
+      .select();
+
+    if (error) throw error;
+
+    io.emit("video:new", data[0]);
+    res.status(201).json(data[0]);
+  } catch (error) {
+    console.error("Error saving video metadata:", error);
+    res.status(500).json({ error: "Failed to save video" });
+  }
 });
 
 // Socket.io logic
