@@ -39,7 +39,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch, toggleSidebar, onHomeClick, o
             <div className="absolute inset-0 bg-cyan-400 blur-lg opacity-20 group-hover:opacity-40 transition-opacity"></div>
           </div>
           <span className="font-black text-2xl tracking-tighter italic bg-gradient-to-r from-white via-slate-200 to-slate-500 bg-clip-text text-transparent uppercase">
-            GeminiTube
+            ice-tube
           </span>
         </div>
       </div>

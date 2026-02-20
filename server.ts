@@ -25,14 +25,54 @@ const io = new Server(httpServer, {
 const PORT = 3000;
 
 // Supabase Initialization
-const supabaseUrl = (process.env.SUPABASE_URL as string) || "";
-const supabaseServiceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY as string) || "";
+// Hardcoded values as requested by user
+const SUPABASE_URL_HARDCODED = "https://ullomarmkawbrzlfgbfo.supabase.co";
+const SUPABASE_SERVICE_ROLE_KEY_HARDCODED = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsbG9tYXJta2F3YnJ6bGZnYmZvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU3Nzc0MiwiZXhwIjoyMDg3MTUzNzQyfQ.z2nyeeQRZBS52luGteE7epbgDGJ_ISwAMr89hFluYes";
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.warn("WARNING: Supabase environment variables are missing. Persistence will not work.");
-}
+const supabaseUrl = (process.env.SUPABASE_URL as string) || SUPABASE_URL_HARDCODED;
+const supabaseServiceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY as string) || SUPABASE_SERVICE_ROLE_KEY_HARDCODED;
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+let supabase: any = null;
+
+const getSupabase = () => {
+  if (!supabase) {
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Supabase environment variables are missing. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
+    }
+    supabase = createClient(supabaseUrl, supabaseServiceKey);
+  }
+  return supabase;
+};
+
+// Initialize Supabase Storage Bucket
+(async () => {
+  try {
+    const client = getSupabase();
+    const { data: buckets, error } = await client.storage.listBuckets();
+    if (error) {
+      console.warn("Error listing buckets:", error.message);
+      return;
+    }
+    
+    const bucketExists = buckets?.some(b => b.name === 'icetube-assets');
+    if (!bucketExists) {
+      console.log("Creating 'icetube-assets' bucket...");
+      const { error: createError } = await client.storage.createBucket('icetube-assets', {
+        public: true,
+        fileSizeLimit: 52428800, // 50MB
+        allowedMimeTypes: ['video/*', 'image/*']
+      });
+      
+      if (createError) {
+        console.error("Failed to create bucket:", createError.message);
+      } else {
+        console.log("Bucket 'icetube-assets' created successfully.");
+      }
+    }
+  } catch (e) {
+    console.warn("Storage initialization skipped (Supabase not configured or unreachable).");
+  }
+})();
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -47,12 +87,20 @@ const upload = multer({
 // API Routes
 app.get("/api/videos", async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const client = getSupabase();
+    const { data, error } = await client
       .from('videos')
       .select('*')
       .order('postedAt', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      // Handle missing table error gracefully
+      if (error.code === 'PGRST205' || error.code === '42P01') {
+        console.warn("WARNING: Table 'videos' not found in Supabase. Returning empty list.");
+        return res.json([]);
+      }
+      throw error;
+    }
     res.json(data || []);
   } catch (error: any) {
     console.error("Error fetching videos:", error);
@@ -63,6 +111,7 @@ app.get("/api/videos", async (req, res) => {
 app.post("/api/upload", upload.single("video"), async (req, res) => {
   console.log("Upload request received");
   try {
+    const client = getSupabase();
     if (!req.file) {
       console.error("No file in request");
       return res.status(400).json({ error: "No file uploaded" });
@@ -76,7 +125,7 @@ app.post("/api/upload", upload.single("video"), async (req, res) => {
     const filePath = `videos/${fileName}`;
 
     console.log(`Uploading to Supabase bucket 'icetube-assets' at path: ${filePath}`);
-    const { data, error } = await supabase.storage
+    const { data, error } = await client.storage
       .from('icetube-assets')
       .upload(filePath, file.buffer, {
         contentType: file.mimetype,
@@ -89,7 +138,7 @@ app.post("/api/upload", upload.single("video"), async (req, res) => {
     }
 
     console.log("Upload successful, getting public URL");
-    const { data: { publicUrl } } = supabase.storage
+    const { data: { publicUrl } } = client.storage
       .from('icetube-assets')
       .getPublicUrl(filePath);
 
@@ -103,8 +152,9 @@ app.post("/api/upload", upload.single("video"), async (req, res) => {
 
 app.post("/api/videos", async (req, res) => {
   try {
+    const client = getSupabase();
     const newVideo = req.body;
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('videos')
       .insert([newVideo])
       .select();

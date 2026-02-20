@@ -1,6 +1,8 @@
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Loader2, PlayCircle, Zap, Search as SearchIcon, Home, Radio, FolderHeart, History, Heart, Terminal } from 'lucide-react';
+import { 
+  Loader2, PlayCircle, Zap, Search as SearchIcon, Home, 
+  Radio, FolderHeart, History, Heart, Terminal 
+} from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -59,8 +61,8 @@ const App: React.FC = () => {
       console.log('Socket connected successfully');
     });
 
-    newSocket.on('connect_error', (error) => {
-      console.warn('Socket connection error (this might be normal if the server is still starting):', error);
+    newSocket.on('connect_error', (err) => {
+      console.warn('Socket connection error (expected in some environments):', err.message);
     });
 
     newSocket.on('video:new', (newVideo: Video) => {
