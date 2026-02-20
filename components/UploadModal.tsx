@@ -69,7 +69,10 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload, channel })
         body: formData,
       });
 
-      if (!uploadRes.ok) throw new Error('Upload failed');
+      if (!uploadRes.ok) {
+        const errorData = await uploadRes.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
       const { videoUrl } = await uploadRes.json();
 
       const newVideo: Video = {
@@ -92,9 +95,9 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload, channel })
 
       onUpload(newVideo);
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload error:", error);
-      alert("Ошибка при загрузке видео");
+      alert(`Ошибка при загрузке видео: ${error.message}`);
     } finally {
       setIsUploading(false);
     }
