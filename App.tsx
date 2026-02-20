@@ -1,6 +1,7 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Loader2, PlayCircle, Zap, Search as SearchIcon, Home, Radio, FolderHeart, History, Heart, Terminal } from 'lucide-react';
+import { io, Socket } from 'socket.io-client';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import VideoCard from './components/VideoCard';
@@ -39,8 +40,63 @@ const App: React.FC = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isChannelModalOpen, setIsChannelModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('all');
+  const [socket, setSocket] = useState<Socket | null>(null);
 
-  // Removed the useEffect that auto-loaded trending videos
+  // Initialize Socket.io
+  useEffect(() => {
+    // NOTE: The "[vite] failed to connect to websocket" error in the console is expected 
+    // and benign in this environment (HMR is disabled). It can be ignored.
+    
+    const newSocket = io({
+      transports: ['websocket'],
+      reconnectionAttempts: 5,
+      timeout: 10000,
+    });
+    
+    setSocket(newSocket);
+
+    newSocket.on('connect', () => {
+      console.log('Socket connected successfully');
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.warn('Socket connection error (this might be normal if the server is still starting):', error);
+    });
+
+    newSocket.on('video:new', (newVideo: Video) => {
+      setVideos(prev => {
+        if (prev.find(v => v.id === newVideo.id)) return prev;
+        return [newVideo, ...prev];
+      });
+    });
+
+    return () => {
+      newSocket.close();
+    };
+  }, []);
+
+  // Fetch initial videos from server
+  useEffect(() => {
+    const loadInitialVideos = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/videos');
+        if (response.ok) {
+          const serverVideos = await response.json();
+          setVideos(prev => {
+            const unique = serverVideos.filter((nv: Video) => !prev.find(pv => pv.id === nv.id));
+            return [...unique, ...prev];
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch initial videos", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadInitialVideos();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('gt_v11_user', JSON.stringify(userState));
@@ -156,7 +212,7 @@ const App: React.FC = () => {
       <Header 
         onSearch={handleSearch} 
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        onHomeClick={() => { setViewMode('all'); setVideos([]); setSelectedVideoId(null); }}
+        onHomeClick={() => { setViewMode('all'); setSelectedVideoId(null); }}
         onUploadClick={() => userState.channel ? setIsUploadModalOpen(true) : setIsChannelModalOpen(true)}
         onProfileClick={() => userState.channel ? handleModeChange('user') : setIsChannelModalOpen(true)}
         userAvatar={userState.channel?.avatar}
@@ -245,7 +301,7 @@ const App: React.FC = () => {
 
       {/* Mobile Bottom Nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#0a0f1d]/95 backdrop-blur-2xl border-t border-white/5 flex items-center justify-around z-[60] px-2 pb-safe">
-        <button onClick={() => { handleModeChange('all'); setVideos([]); }} className={`flex flex-col items-center gap-1 ${viewMode === 'all' && videos.length === 0 ? 'text-cyan-400' : 'text-slate-500'}`}>
+        <button onClick={() => { handleModeChange('all'); }} className={`flex flex-col items-center gap-1 ${viewMode === 'all' && videos.length === 0 ? 'text-cyan-400' : 'text-slate-500'}`}>
           <Home className="w-5 h-5" />
           <span className="text-[8px] font-black uppercase tracking-tighter">Главная</span>
         </button>
@@ -263,7 +319,16 @@ const App: React.FC = () => {
         </button>
       </nav>
 
-      {isUploadModalOpen && <UploadModal onClose={() => setIsUploadModalOpen(false)} onUpload={(v) => setVideos([v, ...videos])} />}
+      {isUploadModalOpen && (
+        <UploadModal 
+          onClose={() => setIsUploadModalOpen(false)} 
+          channel={userState.channel}
+          onUpload={(v) => {
+            setVideos([v, ...videos]);
+            socket?.emit('video:upload', v);
+          }} 
+        />
+      )}
       {isChannelModalOpen && <ChannelModal onClose={() => setIsChannelModalOpen(false)} onCreate={(c) => setUserState({...userState, channel: c})} />}
     </div>
   );

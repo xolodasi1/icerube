@@ -7,9 +7,10 @@ import { CATEGORIES } from '../constants';
 interface UploadModalProps {
   onClose: () => void;
   onUpload: (video: Video) => void;
+  channel: any;
 }
 
-const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload }) => {
+const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload, channel }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Развлечения');
@@ -54,22 +55,32 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload }) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file || !title || !thumbnail) return;
 
     setIsUploading(true);
-    setTimeout(() => {
-      const videoUrl = URL.createObjectURL(file);
+    try {
+      const formData = new FormData();
+      formData.append('video', file);
+
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadRes.ok) throw new Error('Upload failed');
+      const { videoUrl } = await uploadRes.json();
+
       const newVideo: Video = {
         id: 'vid-' + Math.random().toString(36).substr(2, 9),
         title,
         description,
         category,
         thumbnail: thumbnail,
-        channelId: '', 
-        channelName: '', 
-        channelAvatar: '',
+        channelId: channel?.id || 'guest',
+        channelName: channel?.name || 'Гость',
+        channelAvatar: channel?.avatar || 'https://picsum.photos/seed/guest/100/100',
         views: 0,
         likes: 0,
         postedAt: Date.now(),
@@ -80,9 +91,13 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onUpload }) => {
       };
 
       onUpload(newVideo);
-      setIsUploading(false);
       onClose();
-    }, 1500);
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert("Ошибка при загрузке видео");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
